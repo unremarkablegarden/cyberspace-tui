@@ -1,0 +1,16 @@
+# Environment and secrets
+.env
+*-adminsdk.json
+
+# Binary
+cyberspace-cli
+cyberspace
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
