@@ -14,3 +14,7 @@ dist/
 
 # OS
 .DS_Store
+
+*.rules.json
+*.indexes.json
+firestore.rules

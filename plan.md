@@ -484,6 +484,308 @@ GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/cyberspace-mac
 - DMs (polling-based)
 - Notifications
 
+## Firebase Database Structure
+
+The backend uses two Firebase databases: **Firestore** (main data) and **Realtime Database** (real-time features like chat).
+
+### Firestore Collections
+
+#### Core Content
+
+**users**
+```
+{
+  username: string           // Immutable after creation
+  bio: string               // Max 127 chars
+  profilePictureUrl: string
+  followersCount: int
+  followingCount: int
+  postsCount: int
+  createdAt: timestamp
+  updatedAt: timestamp
+  serialNumber: int         // Auto-assigned by Cloud Function
+  pinnedPostId: string      // User's pinned post
+  mutedUsers: array         // Muted user IDs
+
+  // Badges & Permissions
+  isSupporter: bool         // Paid supporter
+  isHacker: bool            // Special badge
+  isSiteAdmin: bool         // Admin privileges
+  isChatAdmin: bool         // Can create chatrooms
+  supporterIcon: string     // Custom supporter badge
+  permissionImage: bool     // Can post images
+
+  // Moderation
+  isBanned: bool
+  bannedAt: timestamp
+  bannedByAdminId: string
+  banReason: string
+  isShadowBanned: bool
+  shadowBannedAt: timestamp
+  shadowBannedByAdminId: string
+  shadowBanReason: string
+}
+```
+
+**posts**
+```
+{
+  authorId: string
+  authorUsername: string
+  content: string           // Max 32768 chars, markdown
+  createdAt: timestamp
+  updatedAt: timestamp
+  deleted: bool             // Soft delete only
+  deletedAt: timestamp
+  repliesCount: int
+  bookmarksCount: int
+  topics: array             // Max 3 lowercase strings
+  isNSFW: bool
+  isBanned: bool            // Author was banned
+  isShadowBanned: bool      // Author was shadow banned
+}
+```
+
+**replies**
+```
+{
+  postId: string
+  authorId: string
+  authorUsername: string
+  content: string           // Max 32768 chars
+  createdAt: timestamp
+  deleted: bool             // Soft delete only
+  savesCount: int           // Bookmarks on replies
+}
+```
+
+**bookmarks**
+```
+{
+  userId: string
+  postId: string            // or replyId
+  type: string              // "post" or "reply"
+  createdAt: timestamp
+}
+```
+
+**follows**
+```
+{
+  followerId: string
+  followedId: string
+  createdAt: timestamp
+}
+```
+
+#### Private Content
+
+**notes** (private posts with revisions)
+```
+{
+  authorId: string
+  noteId: string            // Groups revisions
+  content: string           // Max 32768 chars
+  createdAt: timestamp
+  deleted: bool
+  revisionNumber: int
+}
+```
+
+**user_settings**
+```
+{
+  // User preferences (structure varies)
+}
+```
+
+#### Social Features
+
+**notifications**
+```
+{
+  userId: string            // Recipient
+  type: string              // "reply", "bookmark", "follow", etc.
+  actorId: string           // Who triggered it
+  actorUsername: string
+  read: bool
+  createdAt: timestamp
+  postId: string            // Optional
+  replyId: string           // Optional
+}
+```
+
+**threadSubscriptions**
+```
+{
+  userId: string
+  postId: string
+  createdAt: timestamp
+}
+```
+
+#### Chat (Firestore portion)
+
+**chatrooms**
+```
+{
+  name: string
+  slug: string              // URL-safe ID
+  createdBy: string
+  createdAt: timestamp
+  lastMessageAt: timestamp
+  sortOrder: int
+}
+```
+Special rooms: `hackers` (requires isHacker), `supporters` (requires isSupporter)
+
+**chat_messages**
+```
+{
+  roomId: string
+  userId: string
+  username: string
+  isChatAdmin: bool
+  content: string           // Max 2048 chars
+  timestamp: number
+}
+```
+
+**chat_presence**
+```
+{
+  userId: string
+  username: string
+  isChatAdmin: bool
+  online: bool
+}
+```
+
+#### Direct Messages (Firestore)
+
+**dm_conversations**
+```
+{
+  participants: array       // Exactly 2 user IDs
+  participantUsernames: object
+  lastMessage: string
+  lastMessageBy: string
+  lastMessageAt: timestamp
+  unreadCount: object       // Per-user counts
+}
+```
+
+#### Moderation
+
+**flags** (content reports)
+```
+{
+  reporterId: string
+  contentType: string       // "post", "reply", etc.
+  contentId: string
+  reason: string
+  resolved: bool
+  resolvedAt: timestamp
+  resolvedBy: string
+}
+```
+
+**topics** (denormalized counters)
+```
+{
+  name: string
+  postsCount: int           // Increment/decrement by 1 only
+}
+```
+
+**app_metadata**
+- `current_version`: App version info
+- `statistics`: Site stats
+- `pinned_posts`: Admin-pinned posts
+
+**abuse_logs** (admin only, Cloud Function writes)
+**user_rate_limits** (Cloud Function managed)
+
+### Realtime Database Structure
+
+Used for real-time features (chat presence, typing indicators, DMs).
+
+```
+/users/{userId}
+  - username: string
+  - isBanned: bool
+
+/banned_users/{userId}: bool
+/shadow_banned_users/{userId}: bool
+
+/chatrooms/{roomId}
+  - name: string
+  - slug: string
+  - createdBy: string
+  - createdAt: number
+  - lastMessageAt: number
+  - sortOrder: number
+
+/chat_admins/{userId}: bool
+
+/chat_messages/{roomId}/{messageId}
+  - userId: string
+  - username: string
+  - isChatAdmin: bool
+  - content: string         // Max 2048 chars
+  - timestamp: number
+
+/chat_presence/{roomId}/{userId}
+  - username: string
+  - isChatAdmin: bool
+  - online: bool
+
+/chat_viewing/{roomId}/{userId}
+  - timestamp: number
+
+/chat_room_views/{userId}/{roomId}
+  - lastViewedAt: number
+
+/dm_conversations/{conversationId}
+  - participants: [userId1, userId2]
+  - participantUsernames: object
+  - lastMessage: string
+  - lastMessageBy: string
+  - lastMessageAt: number
+  - unreadCount: object
+
+/dm_messages/{conversationId}/{messageId}
+  - senderId: string
+  - senderUsername: string
+  - content: string         // Max 2048 chars
+  - timestamp: number
+  - read: bool
+
+/dm_presence/{conversationId}/{userId}
+  - username: string
+  - typing: bool
+  - timestamp: number
+
+/dm_viewing/{conversationId}/{userId}
+  - timestamp: number
+
+/user_conversations/{userId}/{conversationId}
+  - otherUserId: string
+  - otherUsername: string
+  - lastMessage: string
+  - lastMessageAt: number
+  - unreadCount: number
+```
+
+### Key Indexes (for queries)
+
+**posts**: Filter by `deleted`, `isBanned`, `isShadowBanned`, `isNSFW`, `topics[]`, order by `createdAt`
+**replies**: Filter by `postId`, `deleted`, order by `createdAt`
+**bookmarks**: Filter by `userId`, order by `createdAt`
+**follows**: Filter by `followerId` or `followedId`, order by `createdAt`
+**notifications**: Filter by `userId`, `read`, order by `createdAt`
+**users**: Filter by `isBanned`, `isHacker`, `isSupporter`, order by `createdAt` or `username`
+
 ## Notes for Implementation
 
 1. **Firestore REST API** returns deeply nested JSON - you'll need to parse the `fields` object carefully
@@ -491,3 +793,8 @@ GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/cyberspace-mac
 3. **Markdown stripping** - Posts are stored as markdown; strip for display or use a simple terminal markdown renderer
 4. **Rate limiting** - The main app has rate limits via Cloud Functions; the REST API should respect these
 5. **No real-time** - This is intentional; use `r` to refresh manually
+6. **Soft deletes** - Posts and replies use `deleted: true`, never hard delete
+7. **Content limits** - Posts/replies: 32768 chars, chat: 2048 chars, bio: 127 chars
+8. **Topics** - Max 3 per post, stored as lowercase strings in array
+9. **Shadow banning** - Shadow banned users' content is hidden from others but visible to themselves
+10. **Special chatrooms** - `hackers` and `supporters` rooms require respective badges
