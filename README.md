@@ -24,7 +24,9 @@ Download the appropriate binary for your platform from the `bin/` folder:
 | macOS (Apple Silicon) | `bin/mac/` | `cyberspace-tui` |
 | macOS (Intel) | `bin/mac-intel/` | `cyberspace-tui` |
 | Linux (x64) | `bin/linux/` | `cyberspace-tui` |
+| Linux (32-bit) | `bin/linux-32/` | `cyberspace-tui` |
 | Windows (x64) | `bin/win/` | `cyberspace-tui.exe` |
+| Windows (32-bit) | `bin/win-32/` | `cyberspace-tui.exe` |
 
 ### macOS / Linux
 
