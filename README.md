@@ -19,28 +19,27 @@ A terminal-based client for [Cyberspace](https://cyberspace.online/)
 
 Download the appropriate binary for your platform from the `bin/` folder:
 
-| Platform | Architecture | File |
-|----------|--------------|------|
-| macOS | Intel | `cyberspace-darwin-amd64` |
-| macOS | Apple Silicon | `cyberspace-darwin-arm64` |
-| Linux | x64 | `cyberspace-linux-amd64` |
-| Linux | ARM64 | `cyberspace-linux-arm64` |
-| Windows | x64 | `cyberspace-windows-amd64.exe` |
+| Platform | Folder | Binary |
+|----------|--------|--------|
+| macOS (Apple Silicon) | `bin/mac/` | `cyberspace-tui` |
+| macOS (Intel) | `bin/mac-intel/` | `cyberspace-tui` |
+| Linux (x64) | `bin/linux/` | `cyberspace-tui` |
+| Windows (x64) | `bin/win/` | `cyberspace-tui.exe` |
 
 ### macOS / Linux
 
 ```bash
 # Download and make executable
-chmod +x cyberspace-darwin-arm64  # or your platform's binary
+chmod +x cyberspace-tui
 
 # Run
-./cyberspace-darwin-arm64
+./cyberspace-tui
 ```
 
 ### Windows
 
 ```powershell
-.\cyberspace-windows-amd64.exe
+.\cyberspace-tui.exe
 ```
 
 ## Usage
