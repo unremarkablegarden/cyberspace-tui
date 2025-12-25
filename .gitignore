@@ -7,3 +7,4 @@
 !bin/
 !bin/*/
 !bin/*/*
+!changelog.md
