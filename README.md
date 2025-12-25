@@ -1,4 +1,4 @@
-# Cyberspace CLI
+# Cyberspace TUI
 
 A terminal-based client for [Cyberspace](https://cyberspace.online/)
 
